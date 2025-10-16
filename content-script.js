@@ -1,0 +1,672 @@
+// Content script for password manager with manual trigger button
+const addPasswordManagerButton = () => {
+    console.log('🚀 Content script loaded on:', location.href);
+    
+    let inputs = document.getElementsByTagName("input");
+    const inputLength = inputs.length;
+    
+    for (let i = 0; i < inputLength; i++) {
+        const input = inputs.item(i);
+        if (input.type !== "password") continue;
+
+        console.log('🔍 Found password input, adding password manager button...');
+        
+        // Create a simple floating button
+        const passwordButton = document.createElement("button");
+        passwordButton.innerHTML = "🔒";
+        passwordButton.style.position = "absolute";
+        passwordButton.style.right = "10px";
+        passwordButton.style.top = "50%";
+        passwordButton.style.transform = "translateY(-50%)";
+        passwordButton.style.width = "30px";
+        passwordButton.style.height = "30px";
+        passwordButton.style.border = "none";
+        passwordButton.style.borderRadius = "50%";
+        passwordButton.style.backgroundColor = "#3498db";
+        passwordButton.style.color = "white";
+        passwordButton.style.cursor = "pointer";
+        passwordButton.style.fontSize = "14px";
+        passwordButton.style.zIndex = "1000";
+        passwordButton.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+        passwordButton.title = "Password Manager";
+        
+        // Position the button relative to the input field
+        const inputRect = input.getBoundingClientRect();
+        const inputParent = input.offsetParent || document.body;
+        
+        // Make sure the input's parent has relative positioning
+        if (getComputedStyle(inputParent).position === 'static') {
+            inputParent.style.position = 'relative';
+        }
+        
+        // Add the button to the input's parent
+        inputParent.appendChild(passwordButton);
+        
+        // Create autofill button (next to lock button)
+        const autofillIconButton = document.createElement("button");
+        autofillIconButton.innerHTML = "🔍";
+        autofillIconButton.style.position = "absolute";
+        autofillIconButton.style.width = "30px";
+        autofillIconButton.style.height = "30px";
+        autofillIconButton.style.border = "none";
+        autofillIconButton.style.borderRadius = "50%";
+        autofillIconButton.style.backgroundColor = "#9b59b6";
+        autofillIconButton.style.color = "white";
+        autofillIconButton.style.cursor = "pointer";
+        autofillIconButton.style.fontSize = "14px";
+        autofillIconButton.style.zIndex = "1000";
+        autofillIconButton.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+        autofillIconButton.title = "Autofill Password";
+        
+        inputParent.appendChild(autofillIconButton);
+        
+        // Position the buttons next to the input
+        const inputOffsetTop = input.offsetTop;
+        const inputOffsetLeft = input.offsetLeft;
+        const inputWidth = input.offsetWidth;
+        const inputHeight = input.offsetHeight;
+        
+        // Autofill button (moved more to the left to avoid covering right-side icons)
+        autofillIconButton.style.position = "absolute";
+        autofillIconButton.style.left = (inputOffsetLeft + inputWidth - 80) + "px";
+        autofillIconButton.style.top = (inputOffsetTop + (inputHeight / 2) - 15) + "px"; // Center vertically
+        
+        // Lock button (aligned with autofill - same height)
+        passwordButton.style.position = "absolute";
+        passwordButton.style.left = (inputOffsetLeft + inputWidth - 118) + "px";
+        passwordButton.style.top = (inputOffsetTop + (inputHeight / 2) - 10) + "px"; // Center vertically
+        
+        // Store reference to the input for later use
+        passwordButton.dataset.inputId = i;
+        autofillIconButton.dataset.inputId = i;
+        
+        // Add click event to show the popup with options (Generate & Save)
+        passwordButton.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔍 Password manager button clicked, showing popup...');
+            createPasswordPopup(input, i);
+        });
+        
+        // Add autofill icon button handler
+        autofillIconButton.addEventListener("click", async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔍 Autofill icon button clicked');
+            
+            autofillIconButton.disabled = true;
+            autofillIconButton.innerHTML = "⏳";
+            
+            try {
+                const url = new URL(location.href);
+                const websiteName = url.hostname.replace('www.', '');
+                
+                // Check if extension context is still valid
+                if (!chrome.runtime?.id) {
+                    throw new Error('Extension context invalidated. Please reload the page.');
+                }
+                
+                // Use LONG-LIVED PORT for autofill
+                const autofillPassword = await new Promise((resolve, reject) => {
+                    const port = chrome.runtime.connect({ name: 'autofillPort' });
+                    let responseReceived = false;
+                    
+                    port.onMessage.addListener((msg) => {
+                        if (msg.type === 'password') {
+                            responseReceived = true;
+                            port.disconnect();
+                            resolve(msg.data);
+                        } else if (msg.type === 'error') {
+                            responseReceived = true;
+                            port.disconnect();
+                            reject(new Error(msg.error));
+                        }
+                    });
+                    
+                    port.onDisconnect.addListener(() => {
+                        if (!responseReceived) {
+                            reject(new Error('Port disconnected'));
+                        }
+                    });
+                    
+                    port.postMessage({
+                        action: 'getPasswordForSite',
+                        data: { websiteName }
+                    });
+                });
+                
+                if (autofillPassword) {
+                    input.value = autofillPassword;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    autofillIconButton.innerHTML = "✅";
+                    setTimeout(() => {
+                        autofillIconButton.innerHTML = "🔍";
+                        autofillIconButton.disabled = false;
+                    }, 2000);
+                } else {
+                    autofillIconButton.innerHTML = "❌";
+                    setTimeout(() => {
+                        autofillIconButton.innerHTML = "🔍";
+                        autofillIconButton.disabled = false;
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('❌ Autofill icon error:', error);
+                autofillIconButton.innerHTML = "❌";
+                setTimeout(() => {
+                    autofillIconButton.innerHTML = "🔍";
+                    autofillIconButton.disabled = false;
+                }, 2000);
+            }
+        });
+        
+        // Only add one set of buttons per page
+        break;
+    }
+};
+
+const createPasswordPopup = (input, inputIndex) => {
+    console.log('🔍 Creating password popup for input:', inputIndex);
+        
+        const popupDiv = document.createElement("div");
+        popupDiv.style.position = "fixed";
+        popupDiv.style.zIndex = "10000";
+        const inputRect = input.getBoundingClientRect();
+        popupDiv.style.left = (inputRect.left + window.scrollX) + "px";
+        popupDiv.style.top = (inputRect.top + window.scrollY - 150) + "px";
+        popupDiv.style.backgroundColor = "#2c3e50";
+        popupDiv.style.width = "320px";
+        popupDiv.style.padding = "18px";
+        popupDiv.style.borderRadius = "8px";
+        popupDiv.style.border = "1px solid #3498db";
+        popupDiv.style.color = "white";
+        popupDiv.style.fontFamily = "Arial, sans-serif";
+        popupDiv.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+        
+        const title = document.createElement("h3");
+        title.innerText = "🔒 Password Manager";
+        title.style.margin = "0 0 12px 0";
+        title.style.color = "#3498db";
+        title.style.fontSize = "16px";
+
+        // Auto-generate password on popup open
+        const generatedPassword = generateSecurePassword();
+        
+        // Password display field (editable - user can override)
+        const passwordDisplay = document.createElement("input");
+        passwordDisplay.type = "text";
+        passwordDisplay.value = generatedPassword;
+        passwordDisplay.readOnly = false; // Allow user to override the generated password
+        passwordDisplay.placeholder = "Edit password or use generated one";
+        passwordDisplay.style.width = "100%";
+        passwordDisplay.style.padding = "10px";
+        passwordDisplay.style.marginBottom = "12px";
+        passwordDisplay.style.backgroundColor = "#34495e";
+        passwordDisplay.style.color = "#ecf0f1";
+        passwordDisplay.style.border = "1px solid #3498db";
+        passwordDisplay.style.borderRadius = "4px";
+        passwordDisplay.style.fontSize = "14px";
+        passwordDisplay.style.fontFamily = "monospace";
+        passwordDisplay.style.boxSizing = "border-box";
+        passwordDisplay.style.cursor = "text";
+
+        // Button container - below password display
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.display = "flex";
+        buttonContainer.style.gap = "8px";
+        buttonContainer.style.flexWrap = "wrap";
+        buttonContainer.style.marginTop = "8px";
+
+        const regenerateButton = document.createElement("button");
+        regenerateButton.innerText = "🔄 Regenerate";
+        regenerateButton.style.backgroundColor = "#3498db";
+        regenerateButton.style.color = "white";
+        regenerateButton.style.border = "none";
+        regenerateButton.style.padding = "10px 12px";
+        regenerateButton.style.borderRadius = "4px";
+        regenerateButton.style.cursor = "pointer";
+        regenerateButton.style.flex = "1";
+        regenerateButton.style.fontSize = "13px";
+        regenerateButton.style.fontWeight = "600";
+
+        const savePasswordButton = document.createElement("button");
+        savePasswordButton.innerText = "💾 Save";
+        savePasswordButton.style.backgroundColor = "#27ae60";
+        savePasswordButton.style.color = "white";
+        savePasswordButton.style.border = "none";
+        savePasswordButton.style.padding = "10px 12px";
+        savePasswordButton.style.borderRadius = "4px";
+        savePasswordButton.style.cursor = "pointer";
+        savePasswordButton.style.flex = "1";
+        savePasswordButton.style.fontSize = "13px";
+        savePasswordButton.style.fontWeight = "600";
+
+        const closeButton = document.createElement("button");
+        closeButton.innerText = "✕";
+        closeButton.style.backgroundColor = "#95a5a6";
+        closeButton.style.color = "white";
+        closeButton.style.border = "none";
+        closeButton.style.padding = "10px 12px";
+        closeButton.style.borderRadius = "4px";
+        closeButton.style.cursor = "pointer";
+        closeButton.style.width = "40px";
+        closeButton.style.fontSize = "13px";
+
+        buttonContainer.appendChild(regenerateButton);
+        buttonContainer.appendChild(savePasswordButton);
+        buttonContainer.appendChild(closeButton);
+
+        popupDiv.appendChild(title);
+        popupDiv.appendChild(passwordDisplay);
+        popupDiv.appendChild(buttonContainer);
+
+        // Regenerate password button
+        regenerateButton.addEventListener("click", () => {
+            const newPassword = generateSecurePassword();
+            passwordDisplay.value = newPassword;
+            console.log('🔄 Regenerated password');
+        });
+
+        // Close popup
+        closeButton.addEventListener("click", () => {
+            popupDiv.remove();
+        });
+        
+        // Close popup when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!popupDiv.contains(e.target) && e.target !== input) {
+                popupDiv.remove();
+            }
+        }, { once: true });
+
+        document.body.appendChild(popupDiv);
+
+        // Save password to Nillion
+        savePasswordButton.addEventListener("click", async () => {
+            const passwordToSave = passwordDisplay.value;
+            
+            if (passwordToSave.length < 8) {
+                alert("Password must be at least 8 characters.");
+                return;
+            }
+
+            savePasswordButton.disabled = true;
+            savePasswordButton.innerText = "💾 Saving...";
+
+            try {
+                console.log('🔄 Saving password to Enhanced Nillion collection...');
+                
+                // Extract website name from URL
+                const url = new URL(location.href);
+                const websiteName = url.hostname.replace('www.', '');
+                
+                // Call the Enhanced Nillion save function
+                const nillionRecordId = await chrome.runtime.sendMessage({
+                    action: 'saveToEnhancedNillion',
+                    data: {
+                        websiteName: websiteName,
+                        websiteUrl: location.href,
+                        password: passwordToSave
+                    }
+                });
+                
+                
+                console.log('✅ Password ACTUALLY saved to Enhanced Nillion!');
+                console.log('📝 Nillion Record ID:', nillionRecordId);
+                
+                // Fill the input field with the saved password
+                input.value = passwordToSave;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                popupDiv.remove();
+                
+                // Show success message
+                const successMsg = document.createElement("div");
+                successMsg.style.position = "fixed";
+                successMsg.style.top = "20px";
+                successMsg.style.right = "20px";
+                successMsg.style.backgroundColor = "#27ae60";
+                successMsg.style.color = "white";
+                successMsg.style.padding = "12px 20px";
+                successMsg.style.borderRadius = "6px";
+                successMsg.style.zIndex = "10001";
+                successMsg.style.fontFamily = "Arial, sans-serif";
+                successMsg.innerText = "🔒 Password saved to Nillion!";
+                document.body.appendChild(successMsg);
+                
+                // Remove message after 3 seconds
+                setTimeout(() => {
+                    if (successMsg.parentNode) {
+                        successMsg.parentNode.removeChild(successMsg);
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                console.error('❌ Failed to save to Enhanced Nillion:', error);
+                alert('❌ Failed to save to Enhanced Nillion - please try again');
+                savePasswordButton.disabled = false;
+                savePasswordButton.innerText = "💾 Save";
+            }
+        });
+
+        // Popup created successfully
+        return;
+    }
+
+const createPasswordListPopup = async (allData, targetInput) => {
+    console.log('🔍 Creating password list popup with data:', allData);
+    
+    // Close any existing popups
+    const existingPopups = document.querySelectorAll('[data-password-popup]');
+    existingPopups.forEach(popup => popup.remove());
+    
+    // Create main popup container
+    const listPopup = document.createElement("div");
+    listPopup.setAttribute('data-password-popup', 'true');
+    listPopup.style.position = "fixed";
+    listPopup.style.top = "50%";
+    listPopup.style.left = "50%";
+    listPopup.style.transform = "translate(-50%, -50%)";
+    listPopup.style.width = "400px";
+    listPopup.style.maxHeight = "500px";
+    listPopup.style.backgroundColor = "#2c3e50";
+    listPopup.style.border = "2px solid #3498db";
+    listPopup.style.borderRadius = "12px";
+    listPopup.style.color = "white";
+    listPopup.style.fontFamily = "Arial, sans-serif";
+    listPopup.style.zIndex = "20000";
+    listPopup.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)";
+    listPopup.style.overflow = "hidden";
+    
+    // Create header
+    const header = document.createElement("div");
+    header.style.padding = "15px 20px";
+    header.style.backgroundColor = "#3498db";
+    header.style.borderBottom = "1px solid #2980b9";
+    
+    const title = document.createElement("h3");
+    title.innerText = "🔒 All Saved Passwords";
+    title.style.margin = "0";
+    title.style.color = "white";
+    title.style.fontSize = "18px";
+    
+    const closeBtn = document.createElement("button");
+    closeBtn.innerHTML = "✕";
+    closeBtn.style.position = "absolute";
+    closeBtn.style.top = "10px";
+    closeBtn.style.right = "15px";
+    closeBtn.style.background = "none";
+    closeBtn.style.border = "none";
+    closeBtn.style.color = "white";
+    closeBtn.style.fontSize = "20px";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.padding = "5px";
+    
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    
+    // Create content area
+    const content = document.createElement("div");
+    content.style.padding = "20px";
+    content.style.maxHeight = "400px";
+    content.style.overflowY = "auto";
+    
+    // Process the data and create password list
+    if (allData && allData.data && Array.isArray(allData.data)) {
+        console.log('📋 Processing password data...');
+        
+        for (const dataRef of allData.data) {
+            try {
+                // Get user client to read the actual password data
+                const userData = await chrome.storage.local.get(['nillion_user_key', 'nillion_user_did']);
+                if (!userData.nillion_user_key || !userData.nillion_user_did) {
+                    continue;
+                }
+                
+                // Create user client to read the data
+                const { SecretVaultUserClient } = await import('@nillion/secretvaults');
+                const { Keypair } = await import('@nillion/nuc');
+                
+                let userKeypair;
+                try {
+                    const keyWithPrefix = userData.nillion_user_key.startsWith('0x') ? userData.nillion_user_key : '0x' + userData.nillion_user_key;
+                    userKeypair = Keypair.from(keyWithPrefix);
+                } catch (error) {
+                    userKeypair = Keypair.from(userData.nillion_user_key);
+                }
+                
+                const userClient = await SecretVaultUserClient.from({
+                    baseUrls: [
+                        'https://nildb-stg-n1.nillion.network',
+                        'https://nildb-stg-n2.nillion.network', 
+                        'https://nildb-stg-n3.nillion.network'
+                    ],
+                    keypair: userKeypair,
+                    blindfold: { operation: 'store' }
+                });
+                
+                // Read the actual password data
+                const recordResponse = await userClient.readData({
+                    collection: dataRef.collection,
+                    document: dataRef.document,
+                });
+                
+                const record = recordResponse?.data;
+                if (record && record.name && record.password) {
+                    // Extract website name from the record name (format: userDid_websiteName)
+                    const websiteName = record.name.split('_').slice(1).join('_');
+                    
+                    // Create password item
+                    const passwordItem = document.createElement("div");
+                    passwordItem.style.padding = "12px";
+                    passwordItem.style.marginBottom = "8px";
+                    passwordItem.style.backgroundColor = "#34495e";
+                    passwordItem.style.borderRadius = "6px";
+                    passwordItem.style.border = "1px solid #4a5f7a";
+                    
+                    const websiteDiv = document.createElement("div");
+                    websiteDiv.style.fontWeight = "bold";
+                    websiteDiv.style.color = "#3498db";
+                    websiteDiv.style.marginBottom = "4px";
+                    websiteDiv.innerText = `🌐 ${websiteName}`;
+                    
+                    // Create password display with copy button
+                    const passwordContainer = document.createElement("div");
+                    passwordContainer.style.display = "flex";
+                    passwordContainer.style.alignItems = "center";
+                    passwordContainer.style.gap = "8px";
+                    passwordContainer.style.marginBottom = "8px";
+                    
+                    const passwordDiv = document.createElement("div");
+                    passwordDiv.style.fontFamily = "monospace";
+                    passwordDiv.style.fontSize = "12px";
+                    passwordDiv.style.color = "#ecf0f1";
+                    passwordDiv.style.backgroundColor = "#2c3e50";
+                    passwordDiv.style.padding = "6px";
+                    passwordDiv.style.borderRadius = "3px";
+                    passwordDiv.style.wordBreak = "break-all";
+                    passwordDiv.style.flex = "1";
+                    passwordDiv.innerText = record.password;
+                    
+                    const copyButton = document.createElement("button");
+                    copyButton.innerHTML = "📋";
+                    copyButton.style.backgroundColor = "#3498db";
+                    copyButton.style.color = "white";
+                    copyButton.style.border = "none";
+                    copyButton.style.padding = "6px 8px";
+                    copyButton.style.borderRadius = "4px";
+                    copyButton.style.cursor = "pointer";
+                    copyButton.style.fontSize = "12px";
+                    copyButton.title = "Copy password";
+                    
+                    // Copy functionality
+                    copyButton.addEventListener("click", async () => {
+                        try {
+                            await navigator.clipboard.writeText(record.password);
+                            copyButton.innerHTML = "✅";
+                            copyButton.style.backgroundColor = "#27ae60";
+                            setTimeout(() => {
+                                copyButton.innerHTML = "📋";
+                                copyButton.style.backgroundColor = "#3498db";
+                            }, 2000);
+                        } catch (error) {
+                            // Fallback for older browsers
+                            const textArea = document.createElement("textarea");
+                            textArea.value = record.password;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            
+                            copyButton.innerHTML = "✅";
+                            copyButton.style.backgroundColor = "#27ae60";
+                            setTimeout(() => {
+                                copyButton.innerHTML = "📋";
+                                copyButton.style.backgroundColor = "#3498db";
+                            }, 2000);
+                        }
+                    });
+                    
+                    passwordContainer.appendChild(passwordDiv);
+                    passwordContainer.appendChild(copyButton);
+                    
+                    // Create button container
+                    const buttonContainer = document.createElement("div");
+                    buttonContainer.style.display = "flex";
+                    buttonContainer.style.gap = "8px";
+                    
+                    const useButton = document.createElement("button");
+                    useButton.innerText = "Use This Password";
+                    useButton.style.backgroundColor = "#27ae60";
+                    useButton.style.color = "white";
+                    useButton.style.border = "none";
+                    useButton.style.padding = "6px 12px";
+                    useButton.style.borderRadius = "4px";
+                    useButton.style.cursor = "pointer";
+                    useButton.style.fontSize = "12px";
+                    useButton.style.flex = "1";
+                    
+                    useButton.addEventListener("click", () => {
+                        targetInput.value = record.password;
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        listPopup.remove();
+                        
+                        // Show success message
+                        const successMsg = document.createElement("div");
+                        successMsg.style.position = "fixed";
+                        successMsg.style.top = "20px";
+                        successMsg.style.right = "20px";
+                        successMsg.style.backgroundColor = "#27ae60";
+                        successMsg.style.color = "white";
+                        successMsg.style.padding = "12px 20px";
+                        successMsg.style.borderRadius = "6px";
+                        successMsg.style.zIndex = "10001";
+                        successMsg.style.fontFamily = "Arial, sans-serif";
+                        successMsg.innerText = `🔒 Password for ${websiteName} applied!`;
+                        document.body.appendChild(successMsg);
+                        setTimeout(() => successMsg.remove(), 3000);
+                    });
+                    
+                    const generateButton = document.createElement("button");
+                    generateButton.innerText = "🎲 Generate New";
+                    generateButton.style.backgroundColor = "#f39c12";
+                    generateButton.style.color = "white";
+                    generateButton.style.border = "none";
+                    generateButton.style.padding = "6px 12px";
+                    generateButton.style.borderRadius = "4px";
+                    generateButton.style.cursor = "pointer";
+                    generateButton.style.fontSize = "12px";
+                    generateButton.style.flex = "1";
+                    
+                    generateButton.addEventListener("click", () => {
+                        const newPassword = generateSecurePassword();
+                        targetInput.value = newPassword;
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        listPopup.remove();
+                        
+                        // Show success message
+                        const successMsg = document.createElement("div");
+                        successMsg.style.position = "fixed";
+                        successMsg.style.top = "20px";
+                        successMsg.style.right = "20px";
+                        successMsg.style.backgroundColor = "#f39c12";
+                        successMsg.style.color = "white";
+                        successMsg.style.padding = "12px 20px";
+                        successMsg.style.borderRadius = "6px";
+                        successMsg.style.zIndex = "10001";
+                        successMsg.style.fontFamily = "Arial, sans-serif";
+                        successMsg.innerText = "🎲 New password generated!";
+                        document.body.appendChild(successMsg);
+                        setTimeout(() => successMsg.remove(), 3000);
+                    });
+                    
+                    buttonContainer.appendChild(useButton);
+                    buttonContainer.appendChild(generateButton);
+                    
+                    passwordItem.appendChild(websiteDiv);
+                    passwordItem.appendChild(passwordContainer);
+                    passwordItem.appendChild(buttonContainer);
+                    content.appendChild(passwordItem);
+                }
+            } catch (error) {
+                console.error('❌ Error processing password item:', error);
+                continue;
+            }
+        }
+        
+        if (content.children.length === 0) {
+            const noPasswords = document.createElement("div");
+            noPasswords.style.textAlign = "center";
+            noPasswords.style.color = "#95a5a6";
+            noPasswords.style.padding = "20px";
+            noPasswords.innerText = "No saved passwords found";
+            content.appendChild(noPasswords);
+        }
+    } else {
+        const errorMsg = document.createElement("div");
+        errorMsg.style.textAlign = "center";
+        errorMsg.style.color = "#e74c3c";
+        errorMsg.style.padding = "20px";
+        errorMsg.innerText = "Failed to load passwords";
+        content.appendChild(errorMsg);
+    }
+    
+    // Assemble popup
+    listPopup.appendChild(header);
+    listPopup.appendChild(content);
+    document.body.appendChild(listPopup);
+    
+    // Close button functionality
+    closeBtn.addEventListener("click", () => {
+        listPopup.remove();
+    });
+    
+    // Close when clicking outside
+    listPopup.addEventListener("click", (e) => {
+        if (e.target === listPopup) {
+            listPopup.remove();
+        }
+    });
+};
+
+// Simple password generator using Math.random()
+const generateSecurePassword = () => {
+    const charset = '@#$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    
+    for (let i = 0; i < 8; i++) {
+        password += charset[Math.floor(Math.random() * charset.length)];
+    }
+    
+    return password;
+}
+
+// Run when content script loads - add password manager button with small delay
+setTimeout(() => {
+    addPasswordManagerButton();
+}, 500);
