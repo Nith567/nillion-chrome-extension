@@ -39,10 +39,12 @@ This project is a submission for the **Nillion Private Data Manager Bounty**, pr
 - **User Consent Flow**: Modal dialogs for permission actions with DID validation
 
 ### 4. **User Owned Collections** ✅
-- **Collection ID**: `8714e211-9e5a-4bb3-8e27-8c44362cafb9`
+- **Collection ID**: `4c728893-3034-42cd-bdf6-d5bb011daac1`
+- **Collection Name**: `nillion-password-manager`
 - **User as Owner**: Each user owns their data via their DID
 - **No App Control**: Apps cannot access data without explicit user permission
 - **Revocable Access**: Users can revoke app permissions anytime
+- **Multi-Account Support**: Store multiple passwords per website with labels (Work, Personal, etc.)
 
 ---
 
@@ -55,7 +57,9 @@ This project is a submission for the **Nillion Private Data Manager Bounty**, pr
 - DID format: `did:nil:[public-key-hex]`
 
 ### 📊 **Private Data Dashboard**
-- **Password Manager UI**: View all stored passwords in popup
+- **Password Manager UI**: View all stored passwords in popup with labels
+- **Multi-Account Support**: Store multiple passwords per website (Work, Personal, etc.)
+- **Label Management**: Organize passwords with custom labels
 - **Auto-fill Integration**: Inject password fields on websites
 - **Current Site Highlighting**: Shows passwords for active website first
 - **Copy to Clipboard**: Decrypt and copy passwords securely
@@ -90,6 +94,48 @@ This project is a submission for the **Nillion Private Data Manager Bounty**, pr
 - **Storage**: Chrome Storage API (local + sync)
 - **Communication**: Long-lived port connections for async operations
 
+### Collection Schema:
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "_id": {
+        "type": "string",
+        "description": "Unique identifier (UUID)"
+      },
+      "website": {
+        "type": "string",
+        "description": "Website hostname (e.g., 'github.com')"
+      },
+      "label": {
+        "type": "string",
+        "description": "User-defined label (e.g., 'Work', 'Personal')"
+      },
+      "password": {
+        "type": "object",
+        "properties": {
+          "%share": {
+            "type": "string",
+            "description": "Encrypted password using Nillion secret sharing"
+          }
+        },
+        "required": ["%share"]
+      }
+    },
+    "required": ["_id", "website", "label", "password"]
+  }
+}
+```
+
+**Benefits of This Schema**:
+- ✅ **Multi-Account Support**: Store multiple passwords per website with unique labels
+- ✅ **User Organization**: Labels help users distinguish between accounts (Work vs Personal)
+- ✅ **Query Flexibility**: Can filter by website and label
+- ✅ **Privacy**: Only `password` field is encrypted with `%share` (secret sharing)
+
 ---
 
 
@@ -118,14 +164,15 @@ This project is a submission for the **Nillion Private Data Manager Bounty**, pr
 
 **Create (Store Password)**:
 ```javascript
-// User visits website, generates password
+// User visits website, generates password with label
 // Extension calls:
 userClient.createData({
   owner: userDid,
   collection: COLLECTION_ID,
   data: [{
     _id: uuid,
-    name: `${userDid}_${websiteName}`,
+    website: websiteName,      // e.g., "github.com"
+    label: label,              // e.g., "Work", "Personal"
     password: { '%allot': encryptedPassword }
   }]
 })
@@ -273,7 +320,8 @@ await userClient.deleteData({
    ```javascript
    {
      _id: "uuid",
-     name: "did:nil:03f3...1962_github.com",
+     website: "github.com",
+     label: "Work",              // User-provided label
      password: {
        '%allot': "user-password-here"  // Secret shared
      }
@@ -408,8 +456,9 @@ await userClient.deleteData({
 │  │ stg-n1   │  │ stg-n2   │  │ stg-n3   │           │
 │  └──────────┘  └──────────┘  └──────────┘           │
 │                                                       │
-│  Collection: 8714e211-9e5a-4bb3-8e27-8c44362cafb9    │
-│  Schema: { name: string, password: { %allot } }      │
+│  Collection: 4c728893-3034-42cd-bdf6-d5bb011daac1    │
+│  Name: nillion-password-manager                      │
+│  Schema: { website, label, password: { %allot } }    │
 │                                                       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -507,7 +556,7 @@ chrome-password-manager-extension/
 │
 ├── package.json                       # Dependencies
 │                                       # - @nillion/secretvaults
-│                                       # - @nillion/nuc
+│                                      
 │                                       # - Webpack & plugins
 │
 ├── NILLION_SETUP.md                   # Nillion configuration guide
@@ -587,7 +636,8 @@ chrome-password-manager-extension/
 5. **Test Dashboard**
    - Click extension icon in toolbar
    - Click "Show My Passwords" button
-   - See list of all saved passwords
+   - See list of all saved passwords with labels
+   - Each password shows: Website + Label (e.g., "github.com 🏷️ Work")
    - Current site (github.com) should be highlighted at top
 
 6. **Test Copy Functionality**
@@ -620,7 +670,7 @@ chrome-password-manager-extension/
 
 1. **User A (Owner)**
    - DID: `did:nil:03f314640c273edcc108a20eddb94898d85042b7fe287ca58692da0a2bbd1962`
-   - Saves password for "github.com"
+   - Saves password for "github.com" with label "Work"
    - Shares access to User B's DID
 
 2. **User B (Grantee)**
@@ -651,17 +701,20 @@ chrome-password-manager-extension/
 ### Scene 3: Storing Private Data (1 min)
 - Visit github.com/login
 - Show: Password field with 🔐 lock icon
+- Show: Modal with Label input and Password input
+- Enter label "Work Account"
 - Enter password "MySecurePass123"
 - Click lock icon
 - Show logs: Password saved to Nillion collection
-- Explain: "Data encrypted with secret sharing and stored on Nillion network"
+- Explain: "Data encrypted with secret sharing and stored on Nillion network with custom labels"
 
 ### Scene 4: Dashboard & Copy (1 min)
 - Click extension icon
 - Show: Password dashboard with github.com password
+- Point out: "github.com 🏷️ Work Account" label displayed
 - Click "📋 Copy"
 - Paste in notepad → show decrypted password
-- Explain: "Users can view and copy their private data anytime"
+- Explain: "Users can view and copy their private data anytime, organized by labels"
 
 ### Scene 5: Grant Access (1 min)
 - Click "🔐 Share" on github.com password
@@ -896,7 +949,7 @@ await enhancedNillionManager.listAllUserData();
 
 ### ✅ Required Technologies
 
-- [x] **Nillion Private Storage**: User Owned Collections (`8714e211-9e5a-4bb3-8e27-8c44362cafb9`)
+- [x] **Nillion Private Storage**: User Owned Collections (`4c728893-3034-42cd-bdf6-d5bb011daac1`)
 - [x] **SecretVaults-ts**: `@nillion/secretvaults` and `@nillion/nuc` libraries
 - [x] **Browser Extension APIs**: Chrome Manifest V3 with service worker
 - [x] **Secure Keypair Storage**: Chrome local storage (browser-encrypted)
