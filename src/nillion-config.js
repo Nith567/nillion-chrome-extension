@@ -5,7 +5,7 @@ export const NILLION_CONFIG = {
   BUILDER_PRIVATE_KEY: 'ddaff61e5179663b5dd21616cea3503521b5c165ca3ba8fd0410d38ce65cde22',
   
   // Your existing collection ID for password storage
-  COLLECTION_ID: '8714e211-9e5a-4bb3-8e27-8c44362cafb9',
+  COLLECTION_ID: '4c728893-3034-42cd-bdf6-d5bb011daac1',
   
   // Testnet URLs (from Nillion docs)
   NILCHAIN_URL: 'http://rpc.testnet.nilchain-rpc-proxy.nilogy.xyz',
@@ -17,10 +17,8 @@ export const NILLION_CONFIG = {
   ]
 };
 
-// Password Manager Collection Schema (matches your "pcollection" schema)
-export const PASSWORD_COLLECTION_SCHEMA = 
-
-{
+// Password Manager Collection Schema (with website, label, and password)
+export const PASSWORD_COLLECTION_SCHEMA = {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "array",
   "items": {
@@ -30,7 +28,10 @@ export const PASSWORD_COLLECTION_SCHEMA =
         "type": "string",
         "description": "Unique identifier"
       },
-      "name": {
+      "website": {
+        "type": "string"
+      },
+      "label": {
         "type": "string"
       },
       "password": {
@@ -46,15 +47,18 @@ export const PASSWORD_COLLECTION_SCHEMA =
       }
     },
     "required": [
-      "_id"
+      "_id",
+      "website",
+      "label",
+      "password"
     ]
   }
-}
+};
 
 
 // Collection configuration
 export const COLLECTION_CONFIG = {
   type: 'owned', // User-owned data with access control
-  name: 'pcollection', // Your actual collection name
+  name: 'nillion-password-manager', // Your actual collection name
   schema: PASSWORD_COLLECTION_SCHEMA
 };

@@ -5,7 +5,7 @@ Your extension is now ready with your existing Nillion collection!
 ### ✅ What's Configured:
 
 1. **API Key**: `ddaff61e5179663b5dd21616cea3503521b5c165ca3ba8fd0410d38ce65cde22`
-2. **Collection ID**: `8714e211-9e5a-4bb3-8e27-8c44362cafb9`
+2. **Collection ID**: `4c728893-3034-42cd-bdf6-d5bb011daac1`
 3. **Collection Schema**: Matches your "pcollection" with `%ll` encryption
 4. **Built Extension**: Ready to load in Chrome
 
