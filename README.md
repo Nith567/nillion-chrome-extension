@@ -4,20 +4,16 @@
 
 This extension provides a complete user-facing interface for managing private data on Nillion Network without requiring developer skills or trusting apps with your keys.
 
-## 🎯 Bounty Submission: Private Data Manager
+## Private Data Manager
 
-This project is a submission for the **Nillion Private Data Manager Bounty**, providing:
+This project is a submission for the **Nillion Private Data Manager**, providing:
 
 ✅ **DID & Keypair Management** - Securely generates and stores user DIDs in browser  
 ✅ **Private Data Dashboard** - Create, view, and delete encrypted passwords in User Owned Collections  
 ✅ **Permission Management** - Grant and revoke app access with granular read/write/execute controls  
 ✅ **User-Owned Collections** - Full control over your private data without trusting third parties  
 ✅ **No Backend Required** - Pure browser-based implementation using Nillion's SecretVaults-ts library
-
-
 ---
-
-## 📋 Bounty Requirements Met
 
 ### 1. **DID Generation and Storage** ✅
 - **Secure Browser Storage**: User's DID and keypair are generated using `@nillion/nuc` Keypair API
@@ -78,14 +74,12 @@ This project is a submission for the **Nillion Private Data Manager Bounty**, pr
 
 ---
 
-## ⚙️ Required Technologies (Bounty Compliance)
+## ⚙️ Required Technologies 
 
 ✅ **Nillion Private Storage** - User Owned Collections for password storage  
 ✅ **SecretVaults-ts Library** - `@nillion/secretvaults` for all Nillion operations  
 ✅ **Browser Extension APIs** - Chrome Manifest V3 with service worker  
 ✅ **Secure Keypair Storage** - Chrome local storage for DID/keypair management  
-✅ **postMessage API** - Communication between content scripts and background service  
-✅ **No Privy SDK** - Pure implementation without third-party identity providers  
 
 ### Tech Stack:
 - **Nillion SDK**: `@nillion/secretvaults`, `@nillion/nuc`
@@ -205,6 +199,8 @@ await userClient.deleteData({
 // Removes data from all Nillion nodes
 ```
 
+**Note**:Grant access & Revoke Access is limited & working for few did's hoping for the upcoming patch update team will fix it  
+
 #### 3. **Permission Management (Grant/Revoke)**
 
 **Grant Access Flow**:
@@ -221,7 +217,8 @@ await userClient.deleteData({
      execute: true
    }
    ```
-6. Success notification shows DID (first 20 chars)
+6. Success notification 
+
 
 **Revoke Access Flow**:
 1. User enters same DID in share modal
@@ -560,13 +557,13 @@ chrome-password-manager-extension/
 │                                       # - Webpack & plugins
 │
 ├── NILLION_SETUP.md                   # Nillion configuration guide
-├── README.md                          # This file (bounty documentation)
+├── README.md                          # documentation and explanation
 └── setup.sh                           # Setup script (if applicable)
 ```
 
 ### Key Files Explained
 
-**`background-with-nillion.js`** (900+ lines)
+**`background-with-nillion.js`** 
 - Heart of the extension
 - Manages `SecretVaultBuilderClient` and `SecretVaultUserClient`
 - DID generation: `Keypair.generate()` → stored in `chrome.storage.local`
@@ -583,7 +580,6 @@ chrome-password-manager-extension/
 - Injects into every webpage
 - Detects password input fields
 - Adds clickable icons (auto-fill 🔑, save 🔐)
-- Positioned: Autofill at -80px left, Lock at -118px left
 - Sends messages to background for password operations
 
 **`popup-passwords.js`** (559 lines)
@@ -664,27 +660,8 @@ chrome-password-manager-extension/
    - Password removed from Nillion
    - Dashboard refreshes automatically
 
-### Testing with Multiple Users
-
-**Scenario: User A shares password with User B**
-
-1. **User A (Owner)**
-   - DID: `did:nil:03f314640c273edcc108a20eddb94898d85042b7fe287ca58692da0a2bbd1962`
-   - Saves password for "github.com" with label "Work"
-   - Shares access to User B's DID
-
-2. **User B (Grantee)**
-   - DID: `did:nil:030de5dc1ef86d95c3c9660302552fe28458596bf076d8cadab406e0effbb0d9b6`
-   - Must have Nillion extension installed
-   - Can access password using their own `userClient.readData()`
-
-3. **Verification**
-   - User B opens extension
-   - Should see User A's shared password in their dashboard
-   - Can copy and use the password
 
 ---
-
 
 ## 🔐 Security Considerations
 
@@ -757,40 +734,8 @@ For production deployment:
   - https://nildb-stg-n2.nillion.network
   - https://nildb-stg-n3.nillion.network
 
-### Related Projects
-- **Nillion React Example**: https://github.com/NillionNetwork/nillion-react-example
-- **Privy Chrome SDK**: https://docs.privy.io/guide/chrome-extension (not used in this project)
 
----
 
-## 🎯 Bounty Checklist
-
-### ✅ Submission Essentials
-
-- [x] **Demo/Prototype**: Chrome extension fully functional
-- [x] **Documentation**: Complete README covering all required topics
-  - [x] DID generation and storage explained
-  - [x] Data operations (create, list, view, delete) documented
-  - [x] Permission management (grant/revoke) explained with UI flow
-- [x] **Video Walkthrough**: Script provided (≤5 min demo flow)
-- [x] **Activity Log**: Grant/Revoke operations logged in console
-
-### ✅ Required Technologies
-
-- [x] **Nillion Private Storage**: User Owned Collections (`4c728893-3034-42cd-bdf6-d5bb011daac1`)
-- [x] **SecretVaults-ts**: `@nillion/secretvaults` and `@nillion/nuc` libraries
-- [x] **Browser Extension APIs**: Chrome Manifest V3 with service worker
-- [x] **Secure Keypair Storage**: Chrome local storage (browser-encrypted)
-- [x] **postMessage API**: Content script ↔ Background communication via ports
-- [x] **No Privy SDK**: Pure implementation without third-party identity
-
-### ✅ Example Project Ideas (Implemented)
-
-- [x] **Private Data Dashboard**: Lists all user passwords with view/delete options
-- [x] **App Permission Manager**: UI for `grantAccess()` and `revokeAccess()` with DID input
-- [x] **Identity Wallet**: Generates and stores user DID/keypair securely in browser
-
----
 
 ## 🤝 Contributing & Development
 
@@ -814,20 +759,8 @@ npm run build
 3. Reload extension: `chrome://extensions/` → Click "Reload"
 4. Test in browser
 
-## � License & Attribution
-
-**License**: MIT License
-
-**Original Project**: Based on [chrome-password-manager-extension](https://github.com/conaticus/chrome-password-manager-extension) by conaticus
 
 **Nillion Integration**: Enhanced with Nillion Private Storage for decentralized, encrypted data management
-
-**Bounty Submission**: Built for Nillion Private Data Manager Bounty
-
-**Author**: Nith567 (GitHub)
-
-**Repository**: https://github.com/Nith567/nillion-chrome-extension
-
 ---
 
 ## 🎉 Summary
