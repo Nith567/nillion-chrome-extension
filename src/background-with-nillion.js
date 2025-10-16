@@ -22,7 +22,7 @@ import {
 
 const NILLION_CONFIG = {
   BUILDER_PRIVATE_KEY: 'ddaff61e5179663b5dd21616cea3503521b5c165ca3ba8fd0410d38ce65cde22',
-  COLLECTION_ID: '8714e211-9e5a-4bb3-8e27-8c44362cafb9',
+  COLLECTION_ID: '4c728893-3034-42cd-bdf6-d5bb011daac1',
   NILCHAIN_URL: 'http://rpc.testnet.nilchain-rpc-proxy.nilogy.xyz',
   NILAUTH_URL: 'https://nilauth.sandbox.app-cluster.sandbox.nilogy.xyz',
   NILDB_NODES: [
@@ -159,7 +159,7 @@ class EnhancedNillionManager {
 
 
 
-  async savePassword(websiteName, password) {
+  async savePassword(websiteName, password, label = 'Default') {
     try {
       if (!this.builderClient) {
         throw new Error('Builder client not initialized');
@@ -186,12 +186,11 @@ class EnhancedNillionManager {
         .expiresAt(Math.floor(Date.now() / 1000) + 3600) // 1 hour
         .build(this.builderClient.keypair.privateKey());
 
-      // Create password data with deterministic id and name for querying
-      // Create simplified password data structure
-      const docId = `${userDid}_${websiteName}`;
+      // Create password data with NEW SCHEMA: website, label, password
       const passwordData = {
-  _id: this.generateUUID(), 
-        name: docId, 
+        _id: this.generateUUID(),
+        website: websiteName,
+        label: label,
         password: {
           '%allot': password, 
         }
@@ -313,9 +312,8 @@ class EnhancedNillionManager {
       console.log('🔑 Has keypair:', !!userKeypair);
       console.log('🧠 Collection ID:', this.collectionId);
   
-      // Step 2: Construct unique name identifier
-      const searchName = `${userDid}_${websiteName}`;
-      console.log('🧩 Step 2: Constructed search name:', searchName);
+      // Step 2: Search for matching website
+      console.log('🔍 Step 2: Searching for website:', websiteName);
   
       // Step 3: Fetch all data references
       console.log('📡 Step 3: Listing user data references...');
@@ -346,8 +344,8 @@ class EnhancedNillionManager {
         return null;
       }
   
-      // Step 4: Read each document & check for matching name
-      console.log('🔍 Step 4: Searching documents for matching name...');
+      // Step 4: Read each document & check for matching website
+      console.log('🔍 Step 4: Searching documents for matching website...');
       for (const ref of userDataArray) {
         const params = {
           collection: ref.collection,
@@ -358,20 +356,21 @@ class EnhancedNillionManager {
           const recordResponse = await userClient.readData(params);
           const record = recordResponse?.data;
   
-          console.log('📖 Read record anta:', JSON.stringify(record, null, 2));
+          console.log('📖 Read record:', JSON.stringify(record, null, 2));
           
-          // Extract website name from the name field: userDid_websiteName
-          if (record?.name) {
-            const extractedWebsite = record.name.split('_').slice(1).join('_');
-            console.log('🌐 Extracted website from record:', extractedWebsite);
+          // Check if website matches (NEW SCHEMA)
+          if (record?.website) {
+            console.log('🌐 Record website:', record.website);
+            console.log('�️ Record label:', record.label);
             console.log('🔑 Password from record:', record.password);
           }
 
-          if (record?.name === searchName && record?.password) {
+          if (record?.website === websiteName && record?.password) {
             console.log('🎉 PASSWORD FOUND!');
             return {
               id: record._id,
-              websiteName,
+              websiteName: record.website,
+              label: record.label,
               password: record.password,
             };
           }
@@ -384,7 +383,7 @@ class EnhancedNillionManager {
   
       // No match found
       console.log('❌ === NO PASSWORD FOUND ===');
-      console.log('🔎 Searched for:', searchName);
+      console.log('🔎 Searched for website:', websiteName);
       return null;
   
     } catch (error) {
@@ -600,13 +599,12 @@ class EnhancedNillionManager {
           
           const record = recordResponse?.data;
           
-          if (record?.name && record?.password) {
-            // Extract website name from the format: userDid_websiteName
-            const websiteName = record.name.split('_').slice(1).join('_');
-            
+          if (record?.website && record?.password) {
+            // NEW SCHEMA: website, label, password
             console.log('🔍 Processing record:', {
-              fullName: record.name,
-              extractedWebsite: websiteName,
+              id: record._id,
+              website: record.website,
+              label: record.label,
               password: record.password,
               collection: ref.collection,
               document: ref.document
@@ -614,9 +612,9 @@ class EnhancedNillionManager {
             
             passwords.push({
               id: record._id,
-              websiteName: websiteName,
+              websiteName: record.website,
+              label: record.label || 'Default',
               password: record.password,
-              fullName: record.name,
               collection: ref.collection,  // Add collection ID for deletion
               document: ref.document        // Add document ID for deletion
             });
@@ -902,7 +900,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     
                     const recordId = await enhancedNillionManager.savePassword(
                         request.data.websiteName,
-                        request.data.password
+                        request.data.password,
+                        request.data.label || 'Default'
                     );
                     
                     // After saving, list all user data to debug
