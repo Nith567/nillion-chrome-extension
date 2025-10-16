@@ -194,6 +194,21 @@ const createPasswordPopup = (input, inputIndex) => {
         // Auto-generate password on popup open
         const generatedPassword = generateSecurePassword();
         
+        // Label input field
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.placeholder = "Label (e.g., Work, Personal)";
+        labelInput.value = "Default";
+        labelInput.style.width = "100%";
+        labelInput.style.padding = "10px";
+        labelInput.style.marginBottom = "8px";
+        labelInput.style.backgroundColor = "#34495e";
+        labelInput.style.color = "#ecf0f1";
+        labelInput.style.border = "1px solid #3498db";
+        labelInput.style.borderRadius = "4px";
+        labelInput.style.fontSize = "14px";
+        labelInput.style.boxSizing = "border-box";
+        
         // Password display field (editable - user can override)
         const passwordDisplay = document.createElement("input");
         passwordDisplay.type = "text";
@@ -259,6 +274,7 @@ const createPasswordPopup = (input, inputIndex) => {
         buttonContainer.appendChild(closeButton);
 
         popupDiv.appendChild(title);
+        popupDiv.appendChild(labelInput);
         popupDiv.appendChild(passwordDisplay);
         popupDiv.appendChild(buttonContainer);
 
@@ -286,6 +302,7 @@ const createPasswordPopup = (input, inputIndex) => {
         // Save password to Nillion
         savePasswordButton.addEventListener("click", async () => {
             const passwordToSave = passwordDisplay.value;
+            const labelToSave = labelInput.value.trim() || 'Default';
             
             if (passwordToSave.length < 8) {
                 alert("Password must be at least 8 characters.");
@@ -302,13 +319,14 @@ const createPasswordPopup = (input, inputIndex) => {
                 const url = new URL(location.href);
                 const websiteName = url.hostname.replace('www.', '');
                 
-                // Call the Enhanced Nillion save function
+                // Call the Enhanced Nillion save function with label
                 const nillionRecordId = await chrome.runtime.sendMessage({
                     action: 'saveToEnhancedNillion',
                     data: {
                         websiteName: websiteName,
                         websiteUrl: location.href,
-                        password: passwordToSave
+                        password: passwordToSave,
+                        label: labelToSave
                     }
                 });
                 
