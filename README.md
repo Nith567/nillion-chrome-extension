@@ -685,63 +685,6 @@ chrome-password-manager-extension/
 
 ---
 
-## 🎥 Demo Video Script (≤5 min)
-
-### Scene 1: Introduction (30 sec)
-- "Hi, I'm demonstrating the Nillion Private Data Manager extension"
-- "This extension gives users full control over their private data"
-- "Without requiring any developer skills or trusting apps with your keys"
-
-### Scene 2: DID Generation (30 sec)
-- Show: Extension installation
-- Open DevTools → Background service worker
-- Point out: `✅ User DID: did:nil:...` in logs
-- Explain: "DID automatically generated and stored securely in browser"
-
-### Scene 3: Storing Private Data (1 min)
-- Visit github.com/login
-- Show: Password field with 🔐 lock icon
-- Show: Modal with Label input and Password input
-- Enter label "Work Account"
-- Enter password "MySecurePass123"
-- Click lock icon
-- Show logs: Password saved to Nillion collection
-- Explain: "Data encrypted with secret sharing and stored on Nillion network with custom labels"
-
-### Scene 4: Dashboard & Copy (1 min)
-- Click extension icon
-- Show: Password dashboard with github.com password
-- Point out: "github.com 🏷️ Work Account" label displayed
-- Click "📋 Copy"
-- Paste in notepad → show decrypted password
-- Explain: "Users can view and copy their private data anytime, organized by labels"
-
-### Scene 5: Grant Access (1 min)
-- Click "🔐 Share" on github.com password
-- Show modal with DID input
-- Enter grantee DID: `did:nil:030de5dc...`
-- Click "Grant Access"
-- Show success alert
-- Explain: "Users can grant read/write/execute permissions to other DIDs"
-
-### Scene 6: Revoke Access (30 sec)
-- Same modal, same DID
-- Click "Revoke Access"
-- Show success
-- Explain: "Users can revoke access anytime, maintaining full control"
-
-### Scene 7: Delete Data (30 sec)
-- Click "🗑️ Delete" on a password
-- Confirm deletion
-- Show: Password removed from dashboard
-- Explain: "Users can permanently delete data from Nillion network"
-
-### Scene 8: Conclusion (30 sec)
-- Recap: DID management, data operations, permission control
-- "This extension makes Nillion's private storage accessible to everyone"
-- "No backend required, no trusted apps, full user control"
-
----
 
 ## 🔐 Security Considerations
 
@@ -767,29 +710,6 @@ chrome-password-manager-extension/
    - Users see exactly what they're sharing
    - No automatic app permissions
 
-### ⚠️ Known Limitations
-
-1. **Builder Private Key Exposure**
-   - **Issue**: Builder private key visible in extension code (browser limitation)
-   - **Impact**: Users can see the builder key in DevTools
-   - **Mitigation**: For production, implement backend proxy to hide builder key
-   - **Bounty Context**: Acceptable for demo/prototype
-
-2. **Browser Storage Security**
-   - **Issue**: Chrome local storage encrypted at OS level, but accessible if device compromised
-   - **Impact**: If user's computer is compromised, keys may be extracted
-   - **Mitigation**: Future: Hardware wallet integration, biometric locks
-
-3. **No Multi-Device Sync**
-   - **Issue**: DID/keypair stored per browser, not synced
-   - **Impact**: Different DID on different devices
-   - **Mitigation**: Future: Encrypted sync via Chrome sync storage
-
-4. **Extension Update Risk**
-   - **Issue**: Malicious extension update could steal keys
-   - **Impact**: Users must trust extension developer
-   - **Mitigation**: Open source code, audit before updates, browser review process
-
 ### 🛡️ Production Recommendations
 
 For production deployment:
@@ -814,98 +734,6 @@ For production deployment:
 
 ---
 
-## 🚨 Troubleshooting
-
-### Common Issues & Solutions
-
-**❌ "Failed to initialize Nillion"**
-- **Cause**: Builder credentials invalid or network unreachable
-- **Fix**: 
-  - Verify `BUILDER_PRIVATE_KEY` in `nillion-config.js`
-  - Check `COLLECTION_ID` matches your collection
-  - Ensure internet connection (Nillion testnet URLs accessible)
-  - Check DevTools logs for specific error
-
-**❌ "No user client found in storage"**
-- **Cause**: DID not generated or storage cleared
-- **Fix**:
-  - Reload extension to trigger DID generation
-  - Check `chrome://extensions/` → Extension → "Errors" tab
-  - Clear storage and reinstall: `chrome.storage.local.clear()`
-
-**❌ "Module not found" errors during build**
-- **Cause**: Missing npm dependencies
-- **Fix**:
-  ```bash
-  rm -rf node_modules package-lock.json
-  npm install
-  npm run build
-  ```
-
-**❌ Extension won't load in Chrome**
-- **Cause**: Manifest errors or missing dist files
-- **Fix**:
-  - Run `npm run build` first
-  - Check `chrome://extensions/` → "Errors" tab for details
-  - Verify `dist/background.js` exists (should be ~3MB)
-  - Check manifest.json CSP includes `wasm-unsafe-eval`
-
-**❌ Grant Access succeeds but Revoke fails**
-- **Cause**: Async propagation delay (grant hasn't committed to all nodes yet)
-- **Fix**:
-  - Wait 5-10 seconds after granting before revoking
-  - This is a known Nillion network behavior
-  - Future: Add retry logic in extension
-
-**❌ Password not appearing in dashboard**
-- **Cause**: Cache issue or save failed
-- **Fix**:
-  - Click "🔄 Refresh" button in popup
-  - Check background logs: `🎯 ENHANCED NILLION SAVE SUCCESS`
-  - Verify `listDataReferences()` returns your document
-  - Check collection ID matches
-
-**❌ Auto-fill icon not appearing**
-- **Cause**: Content script not injected
-- **Fix**:
-  - Reload the webpage (content scripts inject on page load)
-  - Check manifest.json `content_scripts` section
-  - Verify extension has `activeTab` permission
-
-**❌ "Port disconnected" errors**
-- **Cause**: Background service worker stopped
-- **Fix**:
-  - Reload extension: `chrome://extensions/` → "Reload"
-  - Check for errors in background service worker logs
-  - Verify long-lived port connections in code
-
-### Debug Mode
-
-**Enable Verbose Logging**:
-1. Open DevTools → Background Service Worker
-2. Check "Preserve log"
-3. Look for console messages:
-   - `🚀 BACKGROUND SCRIPT LOADED!`
-   - `✅ Enhanced Nillion Password Manager initialized`
-   - `✅ User DID: did:nil:...`
-
-**Inspect Storage**:
-```javascript
-// In DevTools console
-chrome.storage.local.get(['nillion_user_key', 'nillion_user_did'], (result) => {
-  console.log('DID:', result.nillion_user_did);
-  console.log('Has Key:', !!result.nillion_user_key);
-});
-```
-
-**Test Nillion Connection**:
-```javascript
-// In background service worker console
-await enhancedNillionManager.listAllUserData();
-// Should return list of all your data references
-```
-
----
 
 ## 📚 Additional Resources
 
@@ -986,33 +814,6 @@ npm run build
 3. Reload extension: `chrome://extensions/` → Click "Reload"
 4. Test in browser
 
-### Code Structure Best Practices
-
-- **Background Script**: Keep all Nillion operations in background service worker
-- **Content Script**: Only DOM manipulation and user interaction
-- **Popup**: UI logic only, delegate heavy operations to background
-- **Long-Lived Ports**: Use for async operations (no timeout)
-- **Error Handling**: Always wrap Nillion calls in try-catch with user-friendly messages
-
-### Adding Features
-
-**Add New Permission Type**:
-1. Update ACL in `grantAccess()` function
-2. Add UI checkbox in share modal
-3. Update documentation
-
-**Add New Data Type** (e.g., credit cards):
-1. Create new schema in Nillion collection
-2. Add create/read/delete functions in background
-3. Update popup UI with new data type
-
-**Add Activity Log**:
-1. Store operations in `chrome.storage.local`
-2. Add new popup page to display log
-3. Show grant/revoke timestamps and DIDs
-
----
-
 ## � License & Attribution
 
 **License**: MIT License
@@ -1038,10 +839,4 @@ This **Private Data Manager** extension demonstrates:
 ✅ **No Trusted Apps**: Explicit permission grants, revocable anytime  
 ✅ **Browser-Only**: No backend, no servers, no external dependencies  
 ✅ **Production-Ready Architecture**: Clean separation of concerns, extensible design  
-
-**Perfect for**: Bounty judges, developers learning Nillion, users wanting private data control
-
-**Next Steps**: Record demo video, deploy to Chrome Web Store, add activity logging
-
-Thank you for reviewing this submission! 🚀🔐
 
