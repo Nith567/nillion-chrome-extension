@@ -147,6 +147,7 @@ function displayPasswords(passwords) {
             <div class="website-name">
                 <span class="site-icon">🌐</span>
                 ${pwd.websiteName}
+                ${pwd.label ? `<span class="label-badge">🏷️ ${pwd.label}</span>` : ''}
                 ${pwd.websiteName === currentSite ? '<span class="current-badge">Current Site</span>' : ''}
             </div>
             <div class="password-display">

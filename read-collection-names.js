@@ -9,7 +9,7 @@ import {
 // Your configuration
 const NILLION_CONFIG = {
   BUILDER_PRIVATE_KEY: 'ddaff61e5179663b5dd21616cea3503521b5c165ca3ba8fd0410d38ce65cde22',
-  COLLECTION_ID: '8714e211-9e5a-4bb3-8e27-8c44362cafb9',
+  COLLECTION_ID: '4c728893-3034-42cd-bdf6-d5bb011daac1',
   NILCHAIN_URL: 'http://rpc.testnet.nilchain-rpc-proxy.nilogy.xyz',
   NILAUTH_URL: 'https://nilauth.sandbox.app-cluster.sandbox.nilogy.xyz',
   NILDB_NODES: [
